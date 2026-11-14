@@ -322,8 +322,8 @@ function gcalEvents(){
     desc:'Nato/a il '+CASA.fmt(b.data)+(b.nota?'\n'+b.nota:'')});});
   S.rec.forEach(r=>{if(!r.data)return;const av=r.avviso===''||r.avviso==null?3:Number(r.avviso);
     out.push({key:'rec|'+r.id,title:'🔁 '+r.titolo,date:r.data,remindDays:av,color:5,
-      desc:(r.cat||'')+' · '+per(r)+eur(r.importo)+(r.nota?'\n'+r.nota:'')});});
-  S.todo.forEach(o=>{if(o.fatto||!o.data)return;out.push({key:'todo|'+o.id,title:'✅ '+o.titolo,date:o.data,remindDays:1,color:2,desc:o.nota||''});});
+      desc:(r.cat||'')+' · '+per(r)+eur(r.importo)+(r.nota?'\n'+r.nota:'')+'\nwidget: scadenza'});});
+  S.todo.forEach(o=>{if(o.fatto||!o.data)return;out.push({key:'todo|'+o.id,title:'✅ '+o.titolo,date:o.data,remindDays:1,color:2,desc:(o.nota?o.nota+'\n':'')+'widget: scadenza'});});
   return out;
 }
 GCAL.init({app:'casa',label:'Casa',calName:'Casa',events:gcalEvents,toast,btn:'btn pri',btn2:'btn',chipBottom:80});
