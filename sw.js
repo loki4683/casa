@@ -1,5 +1,5 @@
 importScripts('shared.js');
-const SHELL = 'casa-shell-v3';
+const SHELL = 'casa-shell-v4';
 const FILES = ['./', 'index.html', 'shared.js', 'gcal.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(SHELL).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });

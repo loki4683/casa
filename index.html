@@ -49,7 +49,7 @@ h2{font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)
 .cal .tod{outline:2px solid var(--pri)}
 /* modale */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end;justify-content:center}
-#modal[hidden]{display:none}
+[hidden]{display:none!important}
 .sheet{background:var(--bg);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 14px 20px}
 .sheet h2{margin:0 0 10px;font-size:17px;text-transform:none;letter-spacing:0;color:var(--ink)}
 label{display:block;font-size:13px;color:var(--mut);margin-bottom:10px;font-weight:600}
@@ -72,7 +72,7 @@ svg{display:block;width:100%;height:auto}
 <script src="gcal.js"></script>
 <script>
 const KEY='casa_v1';
-let S={bd:[],gym:[],todo:[],rec:[],topics:[]};
+let S={bd:[],gym:[],todo:[],rec:[],topics:[],obi:[]};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r));}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Impossibile salvare sul dispositivo');}CASA.putJ('./_state',S).catch(()=>{});GCAL.changed();}
 
@@ -138,6 +138,7 @@ const FL={
   gym:[{k:'nome',l:'Nome della scheda',req:1,ph:'Es. Scheda A – Petto e tricipiti'},{k:'nota',l:'Note',t:'textarea',rows:2}],
   es:[{k:'nome',l:'Esercizio',req:1,ph:'Es. Panca piana'},{k:'serie',l:'Serie',t:'number'},{k:'rip',l:'Ripetizioni',ph:'Es. 8-10'},{k:'rec',l:'Recupero',ph:'Es. 90 sec'},{k:'nota',l:'Note',t:'textarea',rows:2}],
   todo:[{k:'titolo',l:'Cosa devo fare',req:1},{k:'data',l:'Entro il',t:'date'},{k:'nota',l:'Note',t:'textarea',rows:2}],
+  obi:[{k:'desc',l:'Descrizione',req:1,ph:'Es. Bere acqua, camminare, leggere'},{k:'qta',l:'Quantità',ph:'Es. 2 litri, 10.000 passi, 30 min'}],
   rec:[{k:'titolo',l:'Scadenza',req:1,ph:'Es. Bollo auto, revisione caldaia'},
     {k:'cat',l:'Categoria',t:'select',d:'Casa',o:['Casa','Bollette','Auto','Assicurazioni','Tasse','Abbonamenti','Famiglia','Altro'].map(x=>[x,x])},
     {k:'data',l:'Prossima scadenza',t:'date',req:1},
@@ -177,7 +178,7 @@ const V={
     S.rec.forEach(r=>{const g=CASA.diff(t,r.data);if(g<=30)up.push({g,i:'🔁',x:r.titolo,s:`${r.cat||''} · ${fmt(r.data)}`,v:'rec'});});
     S.todo.forEach(o=>{if(o.fatto||!o.data)return;const g=CASA.diff(t,o.data);if(g<=14)up.push({g,i:'✅',x:o.titolo,s:fmt(o.data),v:'todo'});});
     up.sort((a,b)=>a.g-b.g);
-    const tiles=[['bd','🎂','Compleanni',S.bd.length+' persone'],['gym','🏋️','Palestra',S.gym.length+' schede'],['todo','✅','Cose da fare',S.todo.filter(o=>!o.fatto).length+' aperte'],['rec','🔁','Scadenziere',S.rec.length+' ricorrenti'],['diario','📔','Diario',S.topics.length+' topic']];
+    const tiles=[['bd','🎂','Compleanni',S.bd.length+' persone'],['gym','🏋️','Palestra',S.gym.length+' schede'],['todo','✅','Cose da fare',S.todo.filter(o=>!o.fatto).length+' aperte'],['rec','🔁','Scadenziere',S.rec.length+' ricorrenti'],['diario','📔','Diario',S.topics.length+' topic'],['obi','🎯','Obiettivi giornalieri',S.obi.length?S.obi.filter(o=>o.fattoIl===t).length+' su '+S.obi.length+' fatti oggi':'nessuno']];
     return {t:'Casa',act:'<button class="ib" data-a="nav" data-v="set" aria-label="Impostazioni">⚙</button>',
       b:`<div class="tiles">${tiles.map(x=>`<button class="tile" data-a="nav" data-v="${x[0]}"><span class="e">${x[1]}</span><b>${x[2]}</b><small>${x[3]}</small></button>`).join('')}</div>
       <h2>In arrivo</h2>${up.length?`<div class="card">${up.map(u=>`<button class="it" data-a="nav" data-v="${u.v}"><span>${u.i}</span><span class="m"><b>${h(u.x)}</b><small>${h(u.s)}</small></span>${tagG(u.g)}</button>`).join('')}</div>`:'<p class="empty">Niente in scadenza nei prossimi giorni.</p>'}`};
@@ -222,6 +223,12 @@ const V={
     return {t:'Scadenziere',fab:['recedit','+ Aggiungi'],
       b:l.length?l.map(r=>`<div class="card"><button class="it" data-a="recedit" data-id="${r.id}"><span class="m"><b>${h(r.titolo)}</b><small>${h(r.cat||'')} · ${per(r)}${r.importo!==''&&r.importo!=null?' · € '+Number(r.importo).toFixed(2).replace('.',','):''}</small>${r.nota?`<small>${h(r.nota)}</small>`:''}${r.storico&&r.storico[0]?`<small>ultima volta: ${fmt(r.storico[0])}</small>`:''}</span><span class="r">${tagG(CASA.diff(t,r.data))}<br>${fmt(r.data)}</span></button><div class="row" style="padding:0 12px 10px"><span class="sp"></span><button class="btn sm pri" data-a="recdone" data-id="${r.id}">✓ Fatto, passa alla prossima</button></div></div>`).join(''):'<p class="empty">Nessuna scadenza ricorrente.<br>Aggiungi bollette, bollo, assicurazioni, manutenzioni…</p>'};
   },
+  obi(){
+    const t=T(),n=S.obi.filter(o=>o.fattoIl===t).length;
+    const row=o=>{const ok=o.fattoIl===t;return `<div class="it ${ok?'done':''}"><button class="chk ${ok?'on':''}" data-a="obitog" data-id="${o.id}" aria-label="Eseguito">${ok?'✓':''}</button><button class="m" data-a="obiedit" data-id="${o.id}" style="border:0;background:none;color:inherit;text-align:left;padding:0"><b>${h(o.desc)}</b>${o.qta!==''&&o.qta!=null?`<small>Quantità: ${h(o.qta)}</small>`:''}</button>${ok?'<span class="tag ok">fatto</span>':''}</div>`;};
+    return {t:'Obiettivi giornalieri',fab:['obiedit','+ Nuovo'],
+      b:S.obi.length?`<div class="card" style="padding:14px"><div class="row"><b>Oggi: ${n} su ${S.obi.length}</b><span class="sp"></span>${n===S.obi.length?'<span class="tag ok">tutti fatti 🎉</span>':''}</div></div><div class="card">${S.obi.map(row).join('')}</div><p class="note">Gli obiettivi valgono ogni giorno: la spunta “eseguito” si azzera da sola a mezzanotte.</p>`:'<p class="empty">Nessun obiettivo giornaliero.<br>Tocca “Nuovo” per aggiungerne uno.</p>'};
+  },
   diario(){
     return {t:'Diario',fab:['topedit','+ Nuovo topic'],
       b:S.topics.length?`<div class="card">${S.topics.map(p=>{const u=p.voci[0];return `<button class="it" data-a="nav" data-v="top" data-id="${p.id}"><span>📔</span><span class="m"><b>${h(p.nome)}</b><small>${p.voci.length} voci${u?' · ultima '+fmt(u.d):''}</small></span><span class="r">›</span></button>`;}).join('')}</div>`:'<p class="empty">Nessun topic.<br>Crea un topic (es. “Giornata”, “Viaggi”, “Idee”) e scegli i campi da compilare ogni volta.</p>'};
@@ -237,7 +244,7 @@ const V={
       b:`<h2>Notifiche</h2><div class="card" style="padding:14px"><p style="margin-top:0">Stato: <b>${pm==='granted'?'attive ✓':pm==='denied'?'bloccate dalle impostazioni del telefono':sup?'non attive':'non supportate in questo browser'}</b></p>
       <div class="row">${pm==='granted'?'<button class="btn" data-a="ntest">Invia notifica di prova</button>':sup&&pm!=='denied'?'<button class="btn pri" data-a="non">Attiva notifiche</button>':''}</div>
       <p class="note" style="padding:0;margin-bottom:0">Avvisi per: compleanni (3 giorni prima e il giorno stesso), scadenze ricorrenti (dai giorni di preavviso scelti), cose da fare (il giorno prima e il giorno stesso). Per riceverli anche ad app chiusa, installa l’app nella schermata Home.</p></div>
-      <h2>Google Calendar</h2><div class="card" style="padding:14px">${GCAL.panel()}<p class="note" style="padding:0;margin-bottom:0">Compleanni (ogni anno), scadenze ricorrenti e cose da fare con data finiscono nel calendario “Casa” di Google, con promemoria.</p></div>
+      <h2>Google Calendar</h2><div class="card" style="padding:14px">${GCAL.panel()}<p class="note" style="padding:0;margin-bottom:0">Compleanni (ogni anno), scadenze ricorrenti, cose da fare con data e obiettivi giornalieri finiscono nel calendario “Casa” di Google, con promemoria.</p></div>
       <h2>Backup dei dati</h2><div class="card" style="padding:14px"><p style="margin-top:0">I dati restano solo su questo telefono. Salva ogni tanto una copia.</p><div class="row"><button class="btn pri" data-a="exp">Esporta backup</button><button class="btn" data-a="imp">Importa backup</button></div></div>`};
   }
 };
@@ -261,6 +268,12 @@ const A={
   todoedit(d){edit(S.todo,byId(S.todo,d.id),d.id?'Modifica':'Nuova cosa da fare',FL.todo);},
   tog(d){const o=byId(S.todo,d.id);o.fatto=!o.fatto;o.fattoIl=o.fatto?T():'';save();render();},
   tododel(d,el){if(el.dataset.arm!=='1'){el.dataset.arm='1';el.textContent='Conferma: elimina le completate';return;}S.todo=S.todo.filter(o=>!o.fatto);save();render();},
+  obiedit(d){edit(S.obi,byId(S.obi,d.id),d.id?'Modifica obiettivo':'Nuovo obiettivo giornaliero',FL.obi.concat([{k:'ese',l:'Eseguito oggi',t:'select',d:'no',o:[['no','No'],['si','Sì ✓']]}]).map(f=>f),()=>({dal:T()}));
+    /* il campo "Eseguito oggi" si traduce nella data di esecuzione */
+    const os=F.onSave,o=byId(S.obi,d.id);
+    if(o){const x=$('#frm [name=ese]');if(x)x.value=o.fattoIl===T()?'si':'no';}
+    F.onSave=v=>{const e=v.ese;delete v.ese;os(v);const it=o||S.obi[S.obi.length-1];it.fattoIl=e==='si'?T():'';};},
+  obitog(d){const o=byId(S.obi,d.id),t=T();o.fattoIl=o.fattoIl===t?'':t;save();render();},
   recedit(d){edit(S.rec,byId(S.rec,d.id),d.id?'Modifica scadenza':'Nuova scadenza ricorrente',FL.rec);},
   recdone(d){
     const r=byId(S.rec,d.id),t=T();r.storico=[t].concat(r.storico||[]).slice(0,12);
@@ -296,7 +309,7 @@ const A={
 };
 $('#impf').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;const rd=new FileReader();
-  rd.onload=()=>{try{const o=JSON.parse(rd.result);if(!o||!['bd','gym','todo','rec','topics'].every(k=>Array.isArray(o[k])))throw 0;S=o;save();render();toast('Backup importato');}catch(x){toast('File non valido');}e.target.value='';};
+  rd.onload=()=>{try{const o=JSON.parse(rd.result);if(!o||!['bd','gym','todo','rec','topics'].every(k=>Array.isArray(o[k])))throw 0;S=Object.assign({obi:[]},o);save();render();toast('Backup importato');}catch(x){toast('File non valido');}e.target.value='';};
   rd.readAsText(f);
 });
 document.addEventListener('click',e=>{
@@ -323,6 +336,10 @@ function gcalEvents(){
   S.rec.forEach(r=>{if(!r.data)return;const av=r.avviso===''||r.avviso==null?3:Number(r.avviso);
     out.push({key:'rec|'+r.id,title:'🔁 '+r.titolo,date:r.data,remindDays:av,color:5,
       desc:(r.cat||'')+' · '+per(r)+eur(r.importo)+(r.nota?'\n'+r.nota:'')+'\nwidget: scadenza'});});
+  const t=T();
+  S.obi.forEach(o=>{const ok=o.fattoIl===t,q=o.qta!==''&&o.qta!=null?String(o.qta):'';
+    out.push({key:'obi|'+o.id,title:'🎯 '+o.desc,date:o.dal||t,rrule:'FREQ=DAILY',color:2,
+      desc:'Obiettivo giornaliero'+(q?'\nQuantità: '+q:'')+'\nwidget: obiettivo '+(ok?100:0)+'% @'+t+' | '+(ok?'✓ eseguito':'da fare')+(q?' · '+q:'')});});
   S.todo.forEach(o=>{if(o.fatto||!o.data)return;out.push({key:'todo|'+o.id,title:'✅ '+o.titolo,date:o.data,remindDays:1,color:2,desc:(o.nota?o.nota+'\n':'')+'widget: scadenza'});});
   return out;
 }
