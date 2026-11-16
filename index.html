@@ -58,6 +58,8 @@ textarea{resize:vertical}
 .entry{padding:12px}.entry .d{font-size:13px;color:var(--mut);font-weight:650;display:flex;justify-content:space-between;align-items:center}
 .entry h4{margin:10px 0 2px;font-size:13px;color:var(--pri)}.entry p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .big{font-size:28px;font-weight:700}
+.wg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 12px 12px}.wg input{margin:0;padding:10px 2px;text-align:center}
+.sesr{padding:4px 12px;font-size:14px;display:flex;gap:8px;justify-content:space-between}.sesr span:last-child{white-space:nowrap;font-weight:650}
 svg{display:block;width:100%;height:auto}
 #toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-size:14px;z-index:20;max-width:90vw;text-align:center}
 .note{font-size:14px;color:var(--mut);padding:0 4px}
@@ -74,6 +76,25 @@ svg{display:block;width:100%;height:auto}
 const KEY='casa_v1';
 let S={bd:[],gym:[],todo:[],rec:[],topics:[],obi:[]};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r));}catch(e){}
+/* schede dal programma del 16/11/2026 (create una sola volta) */
+if(!S.seedP1){
+  S.seedP1=1;
+  const E=(nome,serie,rip,rec,np)=>({id:uid0(),nome,serie,rip,rec,log:[],np:np?1:0});
+  let _n=0;function uid0(){return 'p1'+(++_n)+Math.random().toString(36).slice(2,6);}
+  S.gym.push(
+    {id:uid0(),nome:'Giorno 1',ses:[],nota:'Riscaldamento: mobilità dorso del gatto, aperture braccia in quadrupedia, mobilità spalle (tocco dietro la schiena, seduto sui talloni), mobilità della caviglia, 90/90 stretch anche. In tutti gli esercizi esecuzione lenta e controllata, con focus su tecnica e respirazione. Stretching finale.',
+     es:[E('Plank posturale',3,"40''","30''",1),E('Squat con bilanciere',4,'8/10',"1'30''/2'"),E('Leg extension + squat jump con isometria',3,'10+10',"1'"),E('Spinte con manubri panca piana',4,'8/10',"1'30''"),E('Lat machine',4,'8/10',"1'30''/2'"),E('Spinte spalle panca 80',4,'8/10',"1'30''")]},
+    {id:uid0(),nome:'Giorno 2',ses:[],nota:'Riscaldamento: mobilità. Stretching finale.',
+     es:[E('Pallof press',3,'15+15',"30''"),E('Leg press',4,'8/10',"1'30''/2'"),E('Pulley',4,'8/10',"1'30''/2'"),E('Squat bulgari',3,'10+10',"1'"),E('Alzate laterali',3,'12',"1'"),E('Bicipiti e tricipiti ai cavi',3,'10+10',"1'")]});
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+}
+/* bozza dell'allenamento in corso: sopravvive a cambio app e ricaricamenti */
+let GD={};try{GD=JSON.parse(localStorage.getItem('casa_gymdraft'))||{};}catch(e){}
+for(const k in GD)if(!GD[k].w||!Object.keys(GD[k].w).length)delete GD[k];
+const gdSave=()=>{try{localStorage.setItem('casa_gymdraft',JSON.stringify(GD));}catch(e){}};
+const gDate=sid=>(GD[sid]&&GD[sid].d)||CASA.today();
+const sesOf=(s,d)=>(s.ses||[]).find(x=>x.d===d);
+const wtxt=a=>a.filter(x=>x!==''&&x!=null).map(x=>String(x).replace('.',',')).join(' · ');
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Impossibile salvare sul dispositivo');}CASA.putJ('./_state',S).catch(()=>{});GCAL.changed();}
 
 const $=s=>document.querySelector(s);
@@ -201,16 +222,23 @@ const V={
   },
   sch(id){
     const s=byId(S.gym,id);if(!s)return null;
-    return {t:s.nome,act:`<button class="ib" data-a="gymedit" data-id="${s.id}" aria-label="Modifica scheda">✎</button>`,fab:['esedit','+ Esercizio',`data-s="${s.id}"`],
-      b:(s.nota?`<p class="note">${h(s.nota)}</p>`:'')+(s.es.length?`<div class="card">${s.es.map(e=>{const l=e.log[e.log.length-1];return `<button class="it" data-a="nav" data-v="es" data-id="${s.id}" data-id2="${e.id}"><span class="m"><b>${h(e.nome)}</b><small>${[e.serie&&e.rip?e.serie+' × '+h(e.rip):e.serie?e.serie+' serie':h(e.rip||''),e.rec?'rec. '+h(e.rec):''].filter(Boolean).join(' · ')}</small></span><span class="r">${l?'<b style="color:var(--ink);font-size:16px">'+kg(l.kg)+'</b><br>'+fmt(l.d):'nessun peso'}</span></button>`;}).join('')}</div>`:'<p class="empty">Nessun esercizio in questa scheda.</p>')};
+    const d=gDate(s.id),cur=sesOf(s,d),prev=(s.ses||[]).find(x=>x.d<d)||(s.ses||[]).find(x=>x.d!==d),dr=GD[s.id];
+    const sub=e=>[e.serie&&e.rip?e.serie+' × '+h(e.rip):e.serie?e.serie+' serie':h(e.rip||''),e.rec?'rec. '+h(e.rec):''].filter(Boolean).join(' · ');
+    return {t:s.nome,act:`<button class="ib" data-a="gymedit" data-id="${s.id}" aria-label="Modifica scheda">✎</button>`,fab:s.es.some(e=>!e.np)?['sessave','💾 Salva allenamento',`data-s="${s.id}"`]:null,
+      b:(s.nota?`<p class="note">${h(s.nota)}</p>`:'')+
+      `<div class="card" style="padding:12px 12px 2px"><label>Data dell’allenamento<input type="date" data-gd="${s.id}" value="${d}"></label>${cur?'<p class="note" style="padding:0;margin:0 0 10px">Allenamento già salvato in questa data: salvando lo aggiorni.</p>':''}</div>`+
+      s.es.map(e=>{const v=(dr&&dr.w[e.id])||(cur&&cur.val[e.id])||[],p=(prev&&prev.val[e.id])||[];
+        return `<div class="card"><button class="it" style="border-bottom:0" data-a="nav" data-v="es" data-id="${s.id}" data-id2="${e.id}"><span class="m"><b>${h(e.nome)}</b><small>${sub(e)}</small></span><span class="r">${e.np?'':'andamento ›'}</span></button>${e.np?'':`<div class="wg">${[0,1,2,3].map(n=>`<input type="number" inputmode="decimal" step="0.25" min="0" aria-label="Peso serie ${n+1}" data-w="${n}" data-s="${s.id}" data-e="${e.id}" value="${h(v[n]??'')}" placeholder="${p[n]!==''&&p[n]!=null?h(String(p[n]).replace('.',',')):'kg '+(n+1)}">`).join('')}</div>`}</div>`;}).join('')+
+      `<div class="row" style="margin:4px 0 0"><button class="btn sm" data-a="esedit" data-s="${s.id}">+ Esercizio</button><span class="sp"></span><small class="note">In grigio i pesi della volta precedente</small></div>
+      <h2>Storico allenamenti</h2>`+((s.ses||[]).length?s.ses.map(x=>`<div class="card" style="padding-bottom:8px"><div class="entry" style="padding-bottom:4px"><div class="d"><span>📅 ${fmt(x.d)}</span><span class="row"><button class="btn sm" data-a="sesmod" data-s="${s.id}" data-id="${x.id}">Modifica</button><button class="btn sm del" data-a="sesdel" data-s="${s.id}" data-id="${x.id}">Elimina</button></span></div></div>${s.es.filter(e=>x.val[e.id]&&wtxt(x.val[e.id])).map(e=>`<div class="sesr"><span>${h(e.nome)}</span><span>${wtxt(x.val[e.id])} kg</span></div>`).join('')}</div>`).join(''):'<p class="empty">Nessun allenamento salvato.<br>Inserisci i pesi e tocca “Salva allenamento”.</p>')};
   },
   es(sid,eid){
     const s=byId(S.gym,sid),e=s&&byId(s.es,eid);if(!e)return null;
     const lg=e.log,last=lg[lg.length-1],d=lg.length>1?Math.round((last.kg-lg[0].kg)*100)/100:0;
     return {t:e.nome,act:`<button class="ib" data-a="esedit" data-s="${s.id}" data-id="${e.id}" aria-label="Modifica esercizio">✎</button>`,fab:['logedit','+ Registra peso',`data-s="${s.id}" data-e="${e.id}"`],
-      b:`<div class="card" style="padding:14px"><div class="row"><div><small style="color:var(--mut)">Peso attuale</small><div class="big">${last?kg(last.kg):'—'}</div></div><span class="sp"></span>${lg.length>1?`<span class="tag ${d>0?'ok':d<0?'red':''}">${d>0?'+':''}${String(d).replace('.',',')} kg dall’inizio</span>`:''}</div>${chart(lg)}
+      b:`<div class="card" style="padding:14px"><div class="row"><div><small style="color:var(--mut)">Peso attuale (massimo dell’ultima volta)</small><div class="big">${last?kg(last.kg):'—'}</div></div><span class="sp"></span>${lg.length>1?`<span class="tag ${d>0?'ok':d<0?'red':''}">${d>0?'+':''}${String(d).replace('.',',')} kg dall’inizio</span>`:''}</div>${chart(lg)}
       <small style="color:var(--mut)">${[e.serie&&e.rip?e.serie+' × '+h(e.rip):'',e.rec?'recupero '+h(e.rec):'',h(e.nota||'')].filter(Boolean).join(' · ')}</small></div>
-      <h2>Storico</h2>${lg.length?`<div class="card">${lg.slice().reverse().map(l=>`<button class="it" data-a="logedit" data-s="${s.id}" data-e="${e.id}" data-id="${l.id}"><span class="m"><b>${kg(l.kg)}</b>${l.nota?`<small>${h(l.nota)}</small>`:''}</span><span class="r">${fmt(l.d)}</span></button>`).join('')}</div>`:'<p class="empty">Registra il primo peso per vedere l’andamento.</p>'}`};
+      <h2>Storico</h2>${lg.length?`<div class="card">${lg.slice().reverse().map(l=>`${l.ses?`<div class="it"><span class="m"><b>${wtxt(l.sets)} kg</b><small>massimo ${kg(l.kg)}</small></span><span class="r">${fmt(l.d)}</span></div>`:`<button class="it" data-a="logedit" data-s="${s.id}" data-e="${e.id}" data-id="${l.id}"><span class="m"><b>${kg(l.kg)}</b>${l.nota?`<small>${h(l.nota)}</small>`:''}</span><span class="r">${fmt(l.d)}</span></button>`}`).join('')}</div>`:'<p class="empty">Registra il primo peso per vedere l’andamento.</p>'}`};
   },
   todo(){
     const t=T(),open=S.todo.filter(o=>!o.fatto).sort((a,b)=>(a.data||'9999').localeCompare(b.data||'9999')),done=S.todo.filter(o=>o.fatto).sort((a,b)=>(b.fattoIl||'').localeCompare(a.fattoIl||''));
@@ -257,7 +285,25 @@ const A={
   fdel(d,el){if(!F.arm){F.arm=true;el.textContent='Conferma eliminazione';return;}F.onDel();closeM();save();render();},
   calm(d){let m=cal.m+Number(d.d),y=cal.y;if(m<0){m=11;y--;}if(m>11){m=0;y++;}cal={y,m};render();},
   bdedit(d){edit(S.bd,byId(S.bd,d.id),d.id?'Modifica compleanno':'Nuovo compleanno',FL.bd);},
-  gymedit(d){edit(S.gym,byId(S.gym,d.id),d.id?'Modifica scheda':'Nuova scheda',FL.gym,()=>({es:[]}));},
+  gymedit(d){edit(S.gym,byId(S.gym,d.id),d.id?'Modifica scheda':'Nuova scheda',FL.gym,()=>({es:[],ses:[]}));},
+  sessave(d){
+    const s=byId(S.gym,d.s),dt=gDate(s.id),dr=GD[s.id],cur=sesOf(s,dt),val={};let any=false;
+    s.es.forEach(e=>{if(e.np)return;const src=(dr&&dr.w[e.id])||(cur&&cur.val[e.id])||[];
+      const a=[0,1,2,3].map(n=>{const x=String(src[n]??'').replace(',','.').trim(),v=Number(x);return x===''||isNaN(v)?'':v;});
+      if(a.some(x=>x!=='')){val[e.id]=a;any=true;}});
+    if(!any){toast('Inserisci almeno un peso');return;}
+    s.ses=s.ses||[];let x=cur;if(x)x.val=val;else{x={id:uid(),d:dt,val};s.ses.push(x);}
+    s.ses.sort((a,b)=>b.d.localeCompare(a.d));
+    s.es.forEach(e=>{e.log=(e.log||[]).filter(l=>l.ses!==x.id);const a=val[e.id];
+      if(a)e.log.push({id:uid(),d:dt,kg:Math.max(...a.filter(v=>v!=='')),sets:a,ses:x.id});
+      e.log.sort((p,q)=>p.d.localeCompare(q.d));});
+    delete GD[s.id];gdSave();save();render();toast('Allenamento del '+fmt(dt)+' salvato');
+  },
+  sesmod(d){const s=byId(S.gym,d.s),x=byId(s.ses,d.id);GD[s.id]={d:x.d,w:{}};render();window.scrollTo(0,0);toast('Modifica i pesi e salva');},
+  sesdel(d,el){
+    if(el.dataset.arm!=='1'){el.dataset.arm='1';el.textContent='Conferma';return;}
+    const s=byId(S.gym,d.s);s.ses=s.ses.filter(x=>x.id!==d.id);s.es.forEach(e=>{e.log=(e.log||[]).filter(l=>l.ses!==d.id);});save();render();
+  },
   esedit(d){const s=byId(S.gym,d.s);edit(s.es,byId(s.es,d.id),d.id?'Modifica esercizio':'Nuovo esercizio',FL.es,()=>({log:[]}));},
   logedit(d){
     const e=byId(byId(S.gym,d.s).es,d.e),l=byId(e.log,d.id),last=e.log[e.log.length-1];
@@ -311,6 +357,17 @@ $('#impf').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;const rd=new FileReader();
   rd.onload=()=>{try{const o=JSON.parse(rd.result);if(!o||!['bd','gym','todo','rec','topics'].every(k=>Array.isArray(o[k])))throw 0;S=Object.assign({obi:[]},o);save();render();toast('Backup importato');}catch(x){toast('File non valido');}e.target.value='';};
   rd.readAsText(f);
+});
+document.addEventListener('input',e=>{
+  const t=e.target,ds=t.dataset;if(!ds||ds.w===undefined)return;
+  const s=byId(S.gym,ds.s);if(!s)return;
+  const g=GD[s.id]||(GD[s.id]={d:gDate(s.id),w:{}});
+  if(!g.w[ds.e]){const c=sesOf(s,g.d);g.w[ds.e]=c&&c.val[ds.e]?c.val[ds.e].slice():['','','',''];}
+  g.w[ds.e][Number(ds.w)]=t.value;gdSave();
+});
+document.addEventListener('change',e=>{
+  const sid=e.target.dataset&&e.target.dataset.gd;if(!sid||!e.target.value)return;
+  GD[sid]={d:e.target.value,w:(GD[sid]&&GD[sid].w)||{}};gdSave();render();
 });
 document.addEventListener('click',e=>{
   if(e.target.id==='modal'){closeM();return;}
